@@ -267,9 +267,10 @@
     const feedback = el("div", { class: "feedback" });
     const stage = el("div", { class: `sim-stage sim-${data.scene}` });
     const frame = el("div", { class: "device-frame" }, stage);
+    const monitor = el("div", { class: "monitor-rig" }, frame, el("div", { class: "monitor-neck" }), el("div", { class: "monitor-base" }));
     wrap.appendChild(counter);
     wrap.appendChild(prompt);
-    wrap.appendChild(frame);
+    wrap.appendChild(monitor);
     wrap.appendChild(feedback);
     container.appendChild(wrap);
 
