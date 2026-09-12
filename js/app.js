@@ -207,8 +207,7 @@
       };
 
       if (act.type === "flashcards") renderFlashcards(body, act.data, onDone);
-      else if (act.type === "match") renderMatch(body, act.data, onDone);
-      else if (act.type === "sequence") renderSequence(body, act.data, onDone);
+      else if (act.type === "simulate") renderSimulate(body, act.data, onDone);
       else if (act.type === "quiz") renderQuiz(body, act.data, onDone);
     }
 
@@ -259,109 +258,200 @@
     draw();
   }
 
-  // ---------- component: match ----------
-  function renderMatch(container, data, onDone) {
-    const pairs = data.pairs.map((p, i) => ({ ...p, id: i, matched: false }));
-    const rightShuffled = [...pairs].sort(() => Math.random() - 0.5);
-    let selectedLeft = null, selectedRight = null;
-
-    const wrap = el("div", { class: "match-wrap" });
-    const leftCol = el("div", { class: "match-col" });
-    const rightCol = el("div", { class: "match-col" });
-    wrap.appendChild(el("p", { class: "hint" }, "Tap one item on each side to match them."));
-    const grid = el("div", { class: "match-grid" }, leftCol, rightCol);
-    wrap.appendChild(grid);
-    const doneBtn = el("button", { class: "btn btn-primary", type: "button", style: "display:none" }, "Continue →");
-    doneBtn.addEventListener("click", onDone);
-    wrap.appendChild(doneBtn);
+  // ---------- component: simulate (mock-screen practice) ----------
+  function renderSimulate(container, data, onDone) {
+    let idx = 0;
+    const wrap = el("div", { class: "simulate-wrap" });
+    const counter = el("div", { class: "counter" });
+    const prompt = el("p", { class: "sim-prompt" });
+    const feedback = el("div", { class: "feedback" });
+    const stage = el("div", { class: `sim-stage sim-${data.scene}` });
+    const frame = el("div", { class: "device-frame" }, stage);
+    wrap.appendChild(counter);
+    wrap.appendChild(prompt);
+    wrap.appendChild(frame);
+    wrap.appendChild(feedback);
     container.appendChild(wrap);
 
-    function checkAllDone() {
-      if (pairs.every(p => p.matched)) doneBtn.style.display = "";
-    }
+    const builders = { login: buildLoginScene, desktop: buildDesktopScene, browser: buildBrowserScene, videocall: buildVideocallScene, classroom: buildClassroomScene };
+    const scene = builders[data.scene](stage);
 
-    function draw() {
-      leftCol.innerHTML = "";
-      rightCol.innerHTML = "";
-      pairs.forEach(p => {
-        const btn = el("button", { class: `match-item ${p.matched ? "matched" : ""} ${selectedLeft === p.id ? "selected" : ""}`, type: "button", disabled: p.matched ? "disabled" : null }, p.left);
-        if (!p.matched) btn.addEventListener("click", () => { selectedLeft = p.id; tryMatch(); draw(); });
-        leftCol.appendChild(btn);
-      });
-      rightShuffled.forEach(p => {
-        const btn = el("button", { class: `match-item ${p.matched ? "matched" : ""} ${selectedRight === p.id ? "selected" : ""}`, type: "button", disabled: p.matched ? "disabled" : null }, p.right);
-        if (!p.matched) btn.addEventListener("click", () => { selectedRight = p.id; tryMatch(); draw(); });
-        rightCol.appendChild(btn);
-      });
-    }
-
-    function tryMatch() {
-      if (selectedLeft == null || selectedRight == null) return;
-      if (selectedLeft === selectedRight) {
-        const p = pairs.find(x => x.id === selectedLeft);
-        p.matched = true;
-        selectedLeft = null; selectedRight = null;
-        checkAllDone();
-      } else {
-        const l = selectedLeft, r = selectedRight;
-        setTimeout(() => { selectedLeft = null; selectedRight = null; draw(); }, 500);
-      }
-    }
-    draw();
-  }
-
-  // ---------- component: sequence ----------
-  function renderSequence(container, data, onDone) {
-    const correct = data.steps;
-    let pool = [...correct].sort(() => Math.random() - 0.5);
-    let chosen = [];
-
-    const wrap = el("div", { class: "sequence-wrap" });
-    wrap.appendChild(el("p", { class: "hint" }, "Tap the steps in the order they should happen."));
-    const chosenList = el("ol", { class: "sequence-chosen" });
-    const poolList = el("div", { class: "sequence-pool" });
-    const feedback = el("div", { class: "feedback" });
-    const checkBtn = el("button", { class: "btn btn-primary", type: "button" }, "Check My Order");
-    const resetBtn = el("button", { class: "btn btn-link", type: "button" }, "Start Over");
-    const nextBtn = el("button", { class: "btn btn-primary", type: "button", style: "display:none" }, "Continue →");
-    nextBtn.addEventListener("click", onDone);
-
-    function draw() {
-      chosenList.innerHTML = "";
-      chosen.forEach(step => chosenList.appendChild(el("li", null, step)));
-      poolList.innerHTML = "";
-      pool.forEach(step => {
-        const btn = el("button", { class: "sequence-item", type: "button" }, step);
-        btn.addEventListener("click", () => {
-          chosen.push(step);
-          pool = pool.filter(s => s !== step);
-          draw();
-        });
-        poolList.appendChild(btn);
-      });
-    }
-    checkBtn.addEventListener("click", () => {
-      const isCorrect = chosen.length === correct.length && chosen.every((s, i) => s === correct[i]);
-      feedback.textContent = isCorrect ? "✅ Perfect order!" : "Not quite the right order yet — try again!";
-      feedback.className = `feedback ${isCorrect ? "good" : "bad"}`;
-      if (isCorrect) { nextBtn.style.display = ""; checkBtn.style.display = "none"; }
-    });
-    resetBtn.addEventListener("click", () => {
-      pool = [...correct].sort(() => Math.random() - 0.5);
-      chosen = [];
+    function showTask() {
+      const t = data.tasks[idx];
+      counter.textContent = `Step ${idx + 1} / ${data.tasks.length}`;
+      prompt.textContent = t.prompt;
       feedback.textContent = "";
       feedback.className = "feedback";
-      draw();
-    });
+    }
 
-    wrap.appendChild(el("div", null, el("strong", null, "Your order:")));
-    wrap.appendChild(chosenList);
-    wrap.appendChild(el("div", null, el("strong", null, "Steps to arrange:")));
-    wrap.appendChild(poolList);
-    wrap.appendChild(feedback);
-    wrap.appendChild(el("div", { class: "actions" }, checkBtn, resetBtn, nextBtn));
-    container.appendChild(wrap);
-    draw();
+    function onInteract(e, actionType) {
+      const targetEl = e.target.closest("[data-target]");
+      if (!targetEl) return;
+      const t = data.tasks[idx];
+      const wantedAction = t.action || "click";
+      if (wantedAction !== actionType) return;
+      const targetId = targetEl.dataset.target;
+      if (targetId === t.target) {
+        scene.effect(targetId);
+        feedback.textContent = t.successMsg || "Nice! ✅";
+        feedback.className = "feedback good";
+        idx++;
+        if (idx < data.tasks.length) {
+          setTimeout(showTask, 550);
+        } else {
+          setTimeout(onDone, 700);
+        }
+      } else {
+        feedback.textContent = t.hint || "Not that one — try again.";
+        feedback.className = "feedback bad";
+        targetEl.classList.add("shake");
+        setTimeout(() => targetEl.classList.remove("shake"), 400);
+      }
+    }
+    stage.addEventListener("click", (e) => onInteract(e, "click"));
+    stage.addEventListener("dblclick", (e) => onInteract(e, "doubleclick"));
+
+    showTask();
+  }
+
+  function buildLoginScene(stage) {
+    const powerScreen = el("div", { class: "login-off" },
+      el("button", { class: "sim-btn power-btn", type: "button", "data-target": "power" }, "⏻")
+    );
+    const avatar = el("button", { class: "avatar-tile", type: "button", "data-target": "avatar" },
+      el("div", { class: "avatar-emoji" }, "🧑"),
+      el("div", { class: "avatar-name" }, state.name || "Student")
+    );
+    const passwordField = el("button", { class: "password-field", type: "button", "data-target": "password-field" }, "Click to enter password");
+    const signinBtn = el("button", { class: "sim-btn signin-btn", type: "button", "data-target": "signin", hidden: true }, "➜");
+    const loginScreen = el("div", { class: "login-screen", hidden: true }, avatar);
+    stage.appendChild(powerScreen);
+    stage.appendChild(loginScreen);
+    return {
+      effect(targetId) {
+        if (targetId === "power") { powerScreen.hidden = true; loginScreen.hidden = false; }
+        else if (targetId === "avatar") { avatar.replaceWith(el("div", { class: "login-row" }, passwordField)); }
+        else if (targetId === "password-field") { passwordField.textContent = "••••••••"; passwordField.after(signinBtn); signinBtn.hidden = false; }
+        else if (targetId === "signin") { stage.innerHTML = ""; stage.appendChild(el("div", { class: "welcome-msg" }, "🎉 Welcome back!")); }
+      }
+    };
+  }
+
+  function buildDesktopScene(stage) {
+    let zTop = 2;
+    function openWindow(title, bodyChildren, closeTarget) {
+      const win = el("div", { class: "sim-window", style: `z-index:${++zTop}` },
+        el("div", { class: "sim-window-titlebar" },
+          el("span", null, title),
+          el("button", { class: "sim-window-close", type: "button", "data-target": closeTarget }, "✕")
+        ),
+        el("div", { class: "sim-window-body" }, ...bodyChildren)
+      );
+      stage.appendChild(win);
+      return win;
+    }
+    const folder = el("button", { class: "desktop-icon", type: "button", "data-target": "folder" }, el("span", null, "📁"), el("span", { class: "icon-label" }, "My Files"));
+    const browserIcon = el("button", { class: "desktop-icon", type: "button", "data-target": "browser-icon" }, el("span", null, "🌐"), el("span", { class: "icon-label" }, "Browser"));
+    stage.appendChild(el("div", { class: "desktop-icons" }, folder, browserIcon));
+    let fileWindow = null, browserWindow = null;
+    return {
+      effect(targetId) {
+        if (targetId === "folder") {
+          const doc = el("button", { class: "sim-file", type: "button", "data-target": "file-doc" }, el("span", null, "📄"), el("span", null, "Homework.docx"));
+          const img = el("button", { class: "sim-file", type: "button", "data-target": "file-img" }, el("span", null, "🖼️"), el("span", null, "Photo.png"));
+          fileWindow = openWindow("My Files", [doc, img], "close-window");
+        } else if (targetId === "file-doc") {
+          const doc = fileWindow.querySelector('[data-target="file-doc"]');
+          doc.classList.add("selected");
+        } else if (targetId === "browser-icon") {
+          browserWindow = openWindow("Browser", [el("div", { class: "browser-window-page" }, "🌐 lea-academy.org")], "close-browser");
+        } else if (targetId === "close-window") {
+          fileWindow.remove();
+        } else if (targetId === "close-browser") {
+          browserWindow.remove();
+        }
+      }
+    };
+  }
+
+  function buildBrowserScene(stage) {
+    const back = el("button", { class: "browser-btn", type: "button", "data-target": "back" }, "⬅️");
+    const addressBar = el("div", { class: "address-bar", "data-target": "address-bar" }, "lea-academy.org");
+    const star = el("button", { class: "browser-btn", type: "button", "data-target": "star" }, "⭐");
+    const chrome = el("div", { class: "browser-chrome" }, back, addressBar, star);
+    const page = el("div", { class: "browser-page" }, el("h4", null, "How Computers Work"), el("p", { class: "hint" }, "A friendly guide for new students."));
+    stage.appendChild(chrome);
+    stage.appendChild(page);
+    const ad = el("div", { class: "ad-popup" },
+      el("button", { class: "ad-close", type: "button", "data-target": "ad-close" }, "✕"),
+      el("div", null, "🎉 YOU WON A FREE PRIZE!"),
+      el("button", { class: "ad-cta", type: "button", "data-target": "ad-click-here" }, "CLICK HERE NOW")
+    );
+    page.appendChild(ad);
+    return {
+      effect(targetId) {
+        if (targetId === "star") star.classList.add("starred");
+        if (targetId === "ad-close") ad.remove();
+      }
+    };
+  }
+
+  function buildVideocallScene(stage) {
+    const tile = el("div", { class: "video-tile" }, el("span", null, "🧑"));
+    const mic = el("button", { class: "call-btn", type: "button", "data-target": "mic" }, "🎤");
+    const camera = el("button", { class: "call-btn", type: "button", "data-target": "camera" }, "🚫🎥");
+    const hand = el("button", { class: "call-btn", type: "button", "data-target": "hand" }, "✋");
+    const leave = el("button", { class: "call-btn leave", type: "button", "data-target": "leave" }, "📞");
+    stage.appendChild(tile);
+    stage.appendChild(el("div", { class: "call-toolbar" }, mic, camera, hand, leave));
+    let muted = false, camOn = false;
+    return {
+      effect(targetId) {
+        if (targetId === "mic") {
+          muted = !muted;
+          mic.textContent = muted ? "🔇" : "🎤";
+          mic.classList.toggle("active-muted", muted);
+          tile.querySelector(".mute-badge")?.remove();
+          if (muted) tile.appendChild(el("span", { class: "mute-badge" }, "Muted"));
+        } else if (targetId === "camera") {
+          camOn = !camOn;
+          camera.textContent = camOn ? "🎥" : "🚫🎥";
+          camera.classList.toggle("active-on", camOn);
+          tile.firstChild.textContent = camOn ? "😀" : "🧑";
+        } else if (targetId === "hand") {
+          hand.classList.add("active-on");
+          tile.querySelector(".hand-badge")?.remove();
+          tile.appendChild(el("span", { class: "hand-badge" }, "✋"));
+        } else if (targetId === "leave") {
+          stage.innerHTML = "";
+          stage.appendChild(el("div", { class: "welcome-msg" }, "📞 Call ended"));
+        }
+      }
+    };
+  }
+
+  function buildClassroomScene(stage) {
+    const attach = el("button", { class: "sim-action-btn", type: "button", "data-target": "attach" }, "📎 Attach File");
+    const turnin = el("button", { class: "sim-action-btn", type: "button", "data-target": "turnin" }, "✅ Turn In");
+    const card = el("div", { class: "assignment-card" },
+      el("div", { class: "assignment-title" }, "📋 Math Worksheet #3"),
+      el("div", { class: "assignment-actions" }, attach, turnin)
+    );
+    const emailMsg = el("div", { class: "inbox-item", "data-target": "email-msg" }, el("span", { class: "dot" }), el("span", null, "New message from Ms. Rivera"));
+    stage.appendChild(card);
+    stage.appendChild(emailMsg);
+    return {
+      effect(targetId) {
+        if (targetId === "attach") attach.classList.add("done");
+        else if (targetId === "turnin") turnin.classList.add("done");
+        else if (targetId === "email-msg") {
+          emailMsg.replaceWith(el("div", { class: "email-view" },
+            el("p", null, el("strong", null, "Ms. Rivera: "), "Great work this week! Let me know if you have questions."),
+            el("button", { class: "sim-action-btn", type: "button", "data-target": "reply" }, "↩️ Reply")
+          ));
+        }
+      }
+    };
   }
 
   // ---------- component: quiz ----------
