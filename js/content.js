@@ -4,8 +4,8 @@
  */
 const CONTENT = {
   bands: {
-    explorers: { label: "Explorers", grades: "Grades K–2", blurb: "Big buttons, pictures, and games.", color: "#ff8a3d" },
-    builders:  { label: "Builders",  grades: "Grades 3–5", blurb: "Hands-on practice with real steps.", color: "#3d9dff" },
+    explorers: { label: "Explorers", grades: "Grades K–2", blurb: "Big buttons, pictures, and games.", color: "#ff6a3d" },
+    builders:  { label: "Builders",  grades: "Grades 3–5", blurb: "Hands-on practice with real steps.", color: "#3454d1" },
     innovators:{ label: "Innovators",grades: "Grades 6–12", blurb: "Real scenarios and troubleshooting.", color: "#8a5dff" }
   },
 
