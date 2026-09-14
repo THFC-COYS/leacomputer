@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/style.css" />
+<script src="/qrcode.min.js"></script>
 <style>
   body { display: flex; justify-content: center; }
   #app {
@@ -40,6 +41,36 @@
   }
   .status.closed { background: var(--paper-dim); color: var(--muted); }
   .status .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  .join {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 18px 20px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--paper-dim);
+  }
+  .join #qr {
+    width: 132px;
+    height: 132px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 8px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .join #qr svg { width: 100%; height: 100%; }
+  .join .join-text { text-align: left; }
+  .join .join-text .url {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+  .join .join-text .eyebrow { margin-bottom: 4px; }
 
   .bars {
     display: flex;
@@ -153,6 +184,14 @@
     <span class="status" id="status"><span class="dot"></span><span id="statusText">Voting open</span></span>
   </div>
 
+  <div class="join">
+    <div id="qr"></div>
+    <div class="join-text">
+      <div class="eyebrow">Scan to vote</div>
+      <div class="url" id="joinUrl">…</div>
+    </div>
+  </div>
+
   <div class="bars">
     <div class="bar-row">
       <div class="meta"><span id="labelA">Option A</span><span class="count" id="countA">0 votes</span></div>
@@ -222,6 +261,13 @@
   let current = null;
   const savedPin = sessionStorage.getItem("pollPin");
   if (savedPin) els.pin.value = savedPin;
+
+  const joinUrl = window.location.origin + "/";
+  document.getElementById("joinUrl").textContent = joinUrl.replace(/^https?:\/\//, "");
+  const qr = qrcode(0, "M");
+  qr.addData(joinUrl);
+  qr.make();
+  document.getElementById("qr").innerHTML = qr.createSvgTag({ scalable: true });
 
   function render(state) {
     current = state;

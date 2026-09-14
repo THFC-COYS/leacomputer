@@ -113,6 +113,10 @@ const server = http.createServer(async (req, res) => {
     return serveStatic(req, res, path.join(PUBLIC_DIR, "style.css"));
   }
 
+  if (url.pathname === "/qrcode.min.js" && req.method === "GET") {
+    return serveStatic(req, res, path.join(PUBLIC_DIR, "qrcode.min.js"));
+  }
+
   if (url.pathname === "/state" && req.method === "GET") {
     const hasVoted = votedRound.get(voterId) === state.round;
     return sendJSON(res, 200, { ...state, hasVoted }, cookieHeaders);
