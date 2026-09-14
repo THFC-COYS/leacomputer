@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Vote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/style.css" />
+<style>
+  body { padding: 0; display: flex; }
+  #app { display: flex; flex-direction: column; min-height: 100vh; width: 100%; }
+
+  .question-bar {
+    padding: 20px 20px 14px;
+    text-align: center;
+  }
+  .question-bar h1 {
+    font-size: clamp(1.2rem, 5vw, 1.7rem);
+    margin: 6px 0 0;
+    line-height: 1.25;
+  }
+
+  .choices {
+    flex: 1;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 12px;
+    padding: 0 16px 16px;
+  }
+
+  button.choice {
+    border: none;
+    border-radius: 20px;
+    font-family: "Fredoka", system-ui, sans-serif;
+    font-size: clamp(1.6rem, 8vw, 2.6rem);
+    font-weight: 600;
+    color: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    cursor: pointer;
+    transition: transform 0.08s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button.choice:active { transform: scale(0.97); }
+  button.choice:disabled { opacity: 0.5; cursor: default; }
+  button.choice .letter {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.5em;
+    border: 2px solid color-mix(in srgb, var(--paper) 70%, transparent);
+    border-radius: 10px;
+    width: 1.6em;
+    height: 1.6em;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  #choiceA { background: var(--a); }
+  #choiceB { background: var(--b); }
+
+  .waiting, .closed {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 14px;
+    padding: 24px;
+  }
+  .waiting.show, .closed.show { display: flex; }
+  .waiting .badge {
+    font-family: "Fredoka", system-ui, sans-serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    padding: 10px 22px;
+    border-radius: 999px;
+  }
+  .badge.A { background: var(--a-dim); color: var(--a); }
+  .badge.B { background: var(--b-dim); color: var(--b); }
+  .pulse {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--muted);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.25; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pulse { animation: none; }
+    button.choice:active { transform: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="question-bar">
+    <div class="eyebrow" id="roundLabel">Question</div>
+    <h1 id="question">Loading…</h1>
+  </div>
+
+  <div class="choices" id="choices">
+    <button class="choice" id="choiceA" disabled>
+      <span class="letter">A</span><span id="labelA">Option A</span>
+    </button>
+    <button class="choice" id="choiceB" disabled>
+      <span class="letter">B</span><span id="labelB">Option B</span>
+    </button>
+  </div>
+
+  <div class="waiting" id="waiting">
+    <div class="badge" id="votedBadge">You voted A</div>
+    <div class="pulse"></div>
+    <p class="eyebrow">Waiting for the next question…</p>
+  </div>
+
+  <div class="closed" id="closed">
+    <h1>Voting is closed</h1>
+    <p class="eyebrow">Watch the front of the room for results.</p>
+  </div>
+</div>
+
+<script>
+  const choicesEl = document.getElementById("choices");
+  const waitingEl = document.getElementById("waiting");
+  const closedEl = document.getElementById("closed");
+  const questionEl = document.getElementById("question");
+  const roundLabel = document.getElementById("roundLabel");
+  const choiceA = document.getElementById("choiceA");
+  const choiceB = document.getElementById("choiceB");
+  const labelA = document.getElementById("labelA");
+  const labelB = document.getElementById("labelB");
+  const votedBadge = document.getElementById("votedBadge");
+
+  let current = null;
+
+  function render(state) {
+    current = state;
+    questionEl.textContent = state.question;
+    roundLabel.textContent = "Question " + state.round;
+    labelA.textContent = state.optionA;
+    labelB.textContent = state.optionB;
+
+    const votedThisRound = sessionVote() === state.round;
+
+    if (!state.open) {
+      choicesEl.style.display = "none";
+      waitingEl.classList.remove("show");
+      closedEl.classList.add("show");
+      return;
+    }
+    closedEl.classList.remove("show");
+
+    if (votedThisRound || state.hasVoted) {
+      choicesEl.style.display = "none";
+      waitingEl.classList.add("show");
+      const choice = localStorage.getItem("choice_" + state.round) || "A";
+      votedBadge.textContent = "You voted " + choice + " — " + (choice === "A" ? state.optionA : state.optionB);
+      votedBadge.className = "badge " + choice;
+    } else {
+      choicesEl.style.display = "grid";
+      waitingEl.classList.remove("show");
+      choiceA.disabled = false;
+      choiceB.disabled = false;
+    }
+  }
+
+  function sessionVote() {
+    return Number(localStorage.getItem("votedRound") || 0);
+  }
+
+  async function vote(choice) {
+    choiceA.disabled = true;
+    choiceB.disabled = true;
+    try {
+      const res = await fetch("/vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ choice }),
+      });
+      if (res.ok && current) {
+        localStorage.setItem("votedRound", current.round);
+        localStorage.setItem("choice_" + current.round, choice);
+        render(current);
+      } else {
+        choiceA.disabled = false;
+        choiceB.disabled = false;
+      }
+    } catch {
+      choiceA.disabled = false;
+      choiceB.disabled = false;
+    }
+  }
+
+  choiceA.addEventListener("click", () => vote("A"));
+  choiceB.addEventListener("click", () => vote("B"));
+
+  fetch("/state").then((r) => r.json()).then(render);
+
+  const source = new EventSource("/events");
+  source.onmessage = (e) => render(JSON.parse(e.data));
+</script>
+</body>
+</html>

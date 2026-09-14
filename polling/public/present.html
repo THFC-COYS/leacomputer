@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Present Poll</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/style.css" />
+<style>
+  body { display: flex; justify-content: center; }
+  #app {
+    width: 100%;
+    max-width: 980px;
+    padding: 32px 0 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .headline { text-align: center; }
+  .headline h1 {
+    font-size: clamp(1.6rem, 4vw, 2.6rem);
+    margin: 8px 0 0;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    padding: 5px 12px;
+    border-radius: 999px;
+    margin-top: 10px;
+    background: var(--a-dim);
+    color: var(--a);
+  }
+  .status.closed { background: var(--paper-dim); color: var(--muted); }
+  .status .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  .bars {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .bar-row { display: flex; flex-direction: column; gap: 8px; }
+  .bar-row .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: "Fredoka", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: clamp(1.1rem, 2.6vw, 1.5rem);
+  }
+  .bar-row .meta .count {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .track {
+    height: 44px;
+    border-radius: 12px;
+    background: var(--paper-dim);
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .fill {
+    height: 100%;
+    border-radius: 12px 0 0 12px;
+    transition: width 0.5s cubic-bezier(.2,.8,.2,1);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 10px;
+    color: var(--paper);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    min-width: 44px;
+  }
+  .fill.A { background: var(--a); }
+  .fill.B { background: var(--b); }
+
+  .total {
+    text-align: center;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  details.controls {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 4px 18px 18px;
+    background: var(--paper-dim);
+  }
+  details.controls summary {
+    cursor: pointer;
+    padding: 14px 0;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .field label {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .field input {
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  button.action {
+    font-family: "Fredoka", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 11px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    color: var(--paper);
+    background: var(--ink);
+  }
+  button.action.secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .hint { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="headline">
+    <div class="eyebrow" id="roundLabel">Question 1</div>
+    <h1 id="question">Loading…</h1>
+    <span class="status" id="status"><span class="dot"></span><span id="statusText">Voting open</span></span>
+  </div>
+
+  <div class="bars">
+    <div class="bar-row">
+      <div class="meta"><span id="labelA">Option A</span><span class="count" id="countA">0 votes</span></div>
+      <div class="track"><div class="fill A" id="fillA" style="width: 0%">0%</div></div>
+    </div>
+    <div class="bar-row">
+      <div class="meta"><span id="labelB">Option B</span><span class="count" id="countB">0 votes</span></div>
+      <div class="track"><div class="fill B" id="fillB" style="width: 0%">0%</div></div>
+    </div>
+  </div>
+
+  <div class="total" id="total">0 votes so far</div>
+
+  <details class="controls">
+    <summary>Teacher controls</summary>
+
+    <div class="field">
+      <label for="pin">PIN</label>
+      <input id="pin" type="password" inputmode="numeric" placeholder="Enter PIN to unlock controls" />
+    </div>
+
+    <div class="field">
+      <label for="qInput">Question</label>
+      <input id="qInput" type="text" placeholder="Which do you prefer?" />
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1; min-width:180px;">
+        <label for="aInput">Option A</label>
+        <input id="aInput" type="text" placeholder="Option A" />
+      </div>
+      <div class="field" style="flex:1; min-width:180px;">
+        <label for="bInput">Option B</label>
+        <input id="bInput" type="text" placeholder="Option B" />
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="action" id="launchBtn">Launch new question</button>
+      <button class="action secondary" id="toggleBtn">Close voting</button>
+    </div>
+    <p class="hint" id="hint"></p>
+  </details>
+</div>
+
+<script>
+  const els = {
+    question: document.getElementById("question"),
+    roundLabel: document.getElementById("roundLabel"),
+    status: document.getElementById("status"),
+    statusText: document.getElementById("statusText"),
+    labelA: document.getElementById("labelA"),
+    labelB: document.getElementById("labelB"),
+    countA: document.getElementById("countA"),
+    countB: document.getElementById("countB"),
+    fillA: document.getElementById("fillA"),
+    fillB: document.getElementById("fillB"),
+    total: document.getElementById("total"),
+    pin: document.getElementById("pin"),
+    qInput: document.getElementById("qInput"),
+    aInput: document.getElementById("aInput"),
+    bInput: document.getElementById("bInput"),
+    launchBtn: document.getElementById("launchBtn"),
+    toggleBtn: document.getElementById("toggleBtn"),
+    hint: document.getElementById("hint"),
+  };
+
+  let current = null;
+  const savedPin = sessionStorage.getItem("pollPin");
+  if (savedPin) els.pin.value = savedPin;
+
+  function render(state) {
+    current = state;
+    els.question.textContent = state.question;
+    els.roundLabel.textContent = "Question " + state.round;
+    els.labelA.textContent = state.optionA;
+    els.labelB.textContent = state.optionB;
+
+    const total = state.votes.A + state.votes.B;
+    const pctA = total ? Math.round((state.votes.A / total) * 100) : 0;
+    const pctB = total ? 100 - pctA : 0;
+
+    els.countA.textContent = state.votes.A + (state.votes.A === 1 ? " vote" : " votes");
+    els.countB.textContent = state.votes.B + (state.votes.B === 1 ? " vote" : " votes");
+    els.fillA.style.width = pctA + "%";
+    els.fillB.style.width = pctB + "%";
+    els.fillA.textContent = total ? pctA + "%" : "";
+    els.fillB.textContent = total ? pctB + "%" : "";
+    els.total.textContent = total + (total === 1 ? " vote so far" : " votes so far");
+
+    els.status.className = "status" + (state.open ? "" : " closed");
+    els.statusText.textContent = state.open ? "Voting open" : "Voting closed";
+    els.toggleBtn.textContent = state.open ? "Close voting" : "Reopen voting";
+
+    if (!els.qInput.value) els.qInput.value = state.question;
+    if (!els.aInput.value) els.aInput.value = state.optionA;
+    if (!els.bInput.value) els.bInput.value = state.optionB;
+  }
+
+  async function post(path, body) {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return res;
+  }
+
+  els.launchBtn.addEventListener("click", async () => {
+    const pin = els.pin.value.trim();
+    sessionStorage.setItem("pollPin", pin);
+    const res = await post("/admin/question", {
+      pin,
+      question: els.qInput.value.trim() || "Which do you prefer?",
+      optionA: els.aInput.value.trim() || "Option A",
+      optionB: els.bInput.value.trim() || "Option B",
+    });
+    els.hint.textContent = res.ok ? "New question launched." : "Wrong PIN.";
+  });
+
+  els.toggleBtn.addEventListener("click", async () => {
+    const pin = els.pin.value.trim();
+    sessionStorage.setItem("pollPin", pin);
+    const res = await post("/admin/toggle", { pin });
+    els.hint.textContent = res.ok ? "" : "Wrong PIN.";
+  });
+
+  fetch("/state").then((r) => r.json()).then(render);
+
+  const source = new EventSource("/events");
+  source.onmessage = (e) => render(JSON.parse(e.data));
+</script>
+</body>
+</html>
